@@ -1,40 +1,26 @@
-extern py api from "../python/api.py";
+cl import from '@jac-client/utils' { jacSpawn }
 
-node WeightLog {
-    has collector: str;
-    has material: str;
-    has weight: float;
-    has result: any;
+node AdminStats {
+  has total_users: int = 0;
+  has total_requests: int = 0;
+  has total_collections: int = 0;
 }
 
-walker LogWeight {
-    # Entry ability triggered when visiting a WeightLog node
-    can log with WeightLog entry {
-        let data = {
-            "collector": here.collector,
-            "material": here.material,
-            "weight": here.weight
-        }
+walker LoadStats {
+  can load with AdminStats entry {
+    # Call backend walker to get stats
+    stats = await jacSpawn("api_get_stats", "", {});
+    here.total_users = stats.get("total_users", 0);
+    here.total_requests = stats.get("total_requests", 0);
+    here.total_collections = stats.get("total_collections", 0);
 
-        here.result = api.api_log_weight(data)
-        print(f"Weight log result: {here.result}")
-    }
+    print(f"Admin stats - users: {here.total_users}, requests: {here.total_requests}, collections: {here.total_collections}");
+    disengage;
+  }
 }
 
 with entry {
-    # Create a node for a weight log
-    log_node = root ++> WeightLog(
-        collector="John Doe",
-        material="Plastic",
-        weight=12.5
-    )
-
-    # Create walker instance
-    log_walker = LogWeight()
-
-    # Spawn walker on the node
-    log_node[0] spawn log_walker
-
-    # Show result
-    print(f"Logged result: {log_node[0].result}")
+  print("admin.jac demo run");
+  a = root ++> AdminStats();
+  a[0] spawn LoadStats;
 }

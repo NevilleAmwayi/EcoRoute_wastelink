@@ -1,27 +1,34 @@
-extern py api from "../python/api.py";
+cl import from '@jac-client/utils' { jacSpawn }
 
-node TasksNode {
-    has tasks: list[str] = []
+node WasteItem {
+  has image_url: str;
+  has waste_type: str = "unknown";
+  has confidence: float = 0.0;
+  has collection_id: str;
 }
 
-walker Tasks {
-    # Entry ability triggered when visiting a TasksNode
-    can fetch_tasks with TasksNode entry {
-        here.tasks = api.api_get_tasks()
-        print(f"Tasks fetched: {here.tasks}")
+walker ClassifyWaste {
+  can classify with WasteItem entry {
+    res = await jacSpawn("api_classify_image", "", {"image_url": here.image_url});
+
+    if res.get("result") {
+      parsed = res["result"];
+      here.waste_type = parsed.get("waste_type", "unknown");
+      here.confidence = parsed.get("confidence", 0.0);
+      print(f"Classified: {here.waste_type} ({here.confidence})");
+    } else if res.get("waste_type") {
+      here.waste_type = res.get("waste_type", "unknown");
+      here.confidence = res.get("confidence", 0.0);
+      print(f"Classified (direct): {here.waste_type} ({here.confidence})");
+    } else {
+      print("Classification error:", res.get("error", res));
     }
+    disengage;
+  }
 }
 
 with entry {
-    # Create a node to hold tasks
-    tasks_node = root ++> TasksNode()
-
-    # Create walker instance
-    tasks_walker = Tasks()
-
-    # Spawn walker on the node
-    tasks_node[0] spawn tasks_walker
-
-    # Show tasks
-    print(f"Node tasks: {tasks_node[0].tasks}")
+  print("collector.jac demo run");
+  img = root ++> WasteItem(image_url="/mnt/data/WhatsApp Image 2025-11-21 at 11.25.35 AM (1).jpeg");
+  img[0] spawn ClassifyWaste;
 }

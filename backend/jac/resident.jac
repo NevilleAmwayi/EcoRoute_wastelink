@@ -1,40 +1,32 @@
-extern py api from "../python/api.py";
+cl import from '@jac-client/utils' { jacSpawn }
 
-node RequestNode {
-    has user: str;
-    has location: str;
-    has description: str;
-    has response: str = "";
+node ResidentRequest {
+  has resident_id: str;
+  has address: str;
+  has latitude: float;
+  has longitude: float;
+  has location_notes: str = "";
+  has pickup_id: str;
 }
 
-walker CreateRequest {
-    has user: str;
-    has location: str;
-    has description: str;
+walker RequestPickup {
+  can request with ResidentRequest entry {
+    pid = await jacSpawn("api_create_request", "", {
+      "resident_id": here.resident_id,
+      "latitude": here.latitude,
+      "longitude": here.longitude,
+      "address": here.address,
+      "location_notes": here.location_notes
+    });
 
-    # Entry ability triggered when visiting a RequestNode
-    can create with RequestNode entry {
-        let data = {
-            "user": self.user,
-            "location": self.location,
-            "description": self.description
-        }
-
-        here.response = api.api_create_request(data)
-        print(f"Request created: {here.response}")
-    }
+    here.pickup_id = pid.get("request_id");
+    print(f"Pickup created: {here.pickup_id}");
+    disengage;
+  }
 }
 
 with entry {
-    # Create a request node
-    req_node = root ++> RequestNode(user="Alice", location="Nairobi", description="Pickup waste")
-
-    # Create walker
-    walker_instance = CreateRequest(user="Alice", location="Nairobi", description="Pickup waste")
-
-    # Spawn walker on the node
-    req_node[0] spawn walker_instance
-
-    # Show response
-    print(f"Node response: {req_node[0].response}")
+  print("resident.jac demo run");
+  r = root ++> ResidentRequest(resident_id="res-demo", address="Demo Address", latitude=-1.2921, longitude=36.8219);
+  r[0] spawn RequestPickup;
 }
